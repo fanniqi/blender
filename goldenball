@@ -1,0 +1,64 @@
+import bpy
+import bmesh
+
+# Clear existing mesh objects in the scene
+bpy.ops.object.select_all(action='DESELECT')
+bpy.ops.object.select_by_type(type='MESH')
+bpy.ops.object.delete()
+
+# Create a new mesh
+mesh = bpy.data.meshes.new(name="GoldenBall")
+obj = bpy.data.objects.new("GoldenBall", mesh)
+bpy.context.scene.collection.objects.link(obj)
+
+# Select the new object and make it active
+bpy.context.view_layer.objects.active = obj
+obj.select_set(True)
+
+# Enter Edit mode to start creating the ball geometry
+bpy.ops.object.mode_set(mode='EDIT')
+
+# Get the mesh data
+mesh = bpy.context.active_object.data
+bm = bmesh.new()
+
+# Create ball geometry
+radius = 1.0
+segments = 32
+
+bmesh.ops.create_circle(bm, cap_ends=True, cap_tris=True, segments=segments, radius=radius)
+
+# Extrude to make it 3D
+bmesh.ops.extrude_region(bm, geom=bm.faces)
+
+# Update mesh
+bm.to_mesh(mesh)
+bm.free()
+
+# Exit Edit mode
+bpy.ops.object.mode_set(mode='OBJECT')
+
+# Set up gold material
+mat = bpy.data.materials.new(name="GoldMaterial")
+mat.use_nodes = True
+mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (1.0, 0.843, 0.0, 1.0)  # Gold color
+mat.node_tree.nodes["Principled BSDF"].inputs["Metallic"].default_value = 1.0  # Full metallic
+mat.node_tree.nodes["Principled BSDF"].inputs["Specular"].default_value = 0.5  # Adjust specular reflection
+
+obj.data.materials.append(mat)
+
+# Set up lighting and camera
+bpy.ops.object.light_add(type='SUN', radius=1, align='WORLD', location=(5, 5, 5))
+bpy.ops.object.camera_add(align='VIEW', location=(3, -3, 3), rotation=(1, 0, 0))
+
+# Render settings
+bpy.context.scene.render.engine = 'CYCLES'
+bpy.context.scene.cycles.samples = 200
+bpy.context.scene.cycles.device = 'GPU'  # Change to 'CPU' if GPU is not available
+
+# Set up render resolution
+bpy.context.scene.render.resolution_x = 1920
+bpy.context.scene.render.resolution_y = 1080
+
+# Render the scene
+bpy.ops.render.render(write_still=True)
